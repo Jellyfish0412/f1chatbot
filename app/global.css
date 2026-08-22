@@ -14,25 +14,30 @@
     box-sizing: border-box;
 }
 
-body {
+html, body {
     margin: 0;
+    height: 100%;
+    overflow: hidden;
     background-color: var(--bg);
     color: var(--text-main);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ---------- App shell: fixed height, only .feed scrolls inside it ---------- */
 .app-shell {
     max-width: 760px;
     margin: 0 auto;
-    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 20px 20px 100px 20px;
+    padding: 20px 20px 0 20px;
 }
 
-/* ---------- Header ---------- */
+/* ---------- Header (pinned) ---------- */
 .header {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -120,11 +125,13 @@ body {
     box-shadow: 0 0 8px var(--accent);
 }
 
-/* ---------- Chat Feed & Empty State ---------- */
+/* ---------- Chat Feed (the ONLY scrollable region) ---------- */
 .feed {
     flex: 1;
+    min-height: 0; /* critical: lets a flex child actually scroll instead of growing */
     overflow-y: auto;
-    padding: 24px 0;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 0 140px 0; /* bottom padding so last message isn't hidden behind fixed console */
     display: flex;
     flex-direction: column;
 }
@@ -388,16 +395,18 @@ body {
     100% { opacity: 1; }
 }
 
-/* ---------- Console / Input ---------- */
+/* ---------- Fixed footer group: console (input) + chassis plate ---------- */
 .console-wrapper {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 16px 20px;
-    background: linear-gradient(to top, var(--bg) 80%, transparent);
+    padding: 16px 20px 12px 20px;
+    background: linear-gradient(to top, var(--bg) 75%, transparent);
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
 }
 
 .console {
@@ -465,11 +474,10 @@ body {
     cursor: not-allowed;
 }
 
-/* ---------- Chassis plate credit ---------- */
+/* ---------- Chassis plate credit (now part of the fixed footer) ---------- */
 .chassis-plate {
     display: flex;
     justify-content: center;
-    padding-top: 20px;
 }
 
 .chassis-plate span {
