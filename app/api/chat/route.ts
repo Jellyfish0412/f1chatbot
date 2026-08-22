@@ -3,8 +3,19 @@ import { pipeline } from "@xenova/transformers"
 
 const { ASTRA_DB_NAMESPACE, ASTRA_DB_COLLECTION, ASTRA_DB_API_ENDPOINT, ASTRA_DB_APPLICATION_TOKEN, GROQ_API_KEY } = process.env
 
-const client = new DataAPIClient(ASTRA_DB_APPLICATION_TOKEN)
-const db = client.db(ASTRA_DB_API_ENDPOINT, { keyspace: ASTRA_DB_NAMESPACE })
+let db: ReturnType<DataAPIClient["db"]> | null = null
+const getDb = () => {
+    if (!ASTRA_DB_APPLICATION_TOKEN || !ASTRA_DB_API_ENDPOINT || !ASTRA_DB_NAMESPACE) {
+        throw new Error(
+            "Missing Astra DB environment variables. Please check ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_API_ENDPOINT, and ASTRA_DB_NAMESPACE."
+        )
+    }
+    if (!db) {
+        const client = new DataAPIClient(ASTRA_DB_APPLICATION_TOKEN)
+        db = client.db(ASTRA_DB_API_ENDPOINT, { keyspace: ASTRA_DB_NAMESPACE })
+    }
+    return db
+}
 
 let embedder: any = null
 const getEmbedder = async () => {
@@ -22,6 +33,11 @@ const embedText = async (text: string): Promise<number[]> => {
 
 export async function POST(req: Request) {
     try {
+        if (!GROQ_API_KEY) {
+            console.error("Missing GROQ_API_KEY environment variable.")
+            return new Response("Server misconfiguration: missing GROQ_API_KEY", { status: 500 })
+        }
+
         const { messages }: { messages: { role: "user" | "assistant"; content: string }[] } = await req.json()
         const latestMessage = messages[messages.length - 1]
         const latestText = latestMessage.content
@@ -29,7 +45,8 @@ export async function POST(req: Request) {
         let docContext = ""
         try {
             const vector = await embedText(latestText)
-            const collection = await db.collection(ASTRA_DB_COLLECTION)
+            const database = getDb()
+            const collection = await database.collection(ASTRA_DB_COLLECTION as string)
             const cursor = collection.find({}, { sort: { $vector: vector }, limit: 10 })
             const documents = await cursor.toArray()
             docContext = documents.map((doc) => doc.text).join("\n\n")
@@ -125,7 +142,6 @@ END CONTEXT
                                 controller.enqueue(encoder.encode(content))
                             }
                         } catch {
-                            // 忽略解析失败的行
                         }
                     }
                 }
